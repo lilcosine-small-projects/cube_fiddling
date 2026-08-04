@@ -1,28 +1,28 @@
 import copy
-from collections import deque
 import random
+from collections import deque
 
 starting_state = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]]
 
 MOVE_MAP = {
   "U": [(0,1), (1,2), (2,3), (3,0)],
-  # "D": [(4,7), (7,6), (6,5), (5,4)],
-  # "L": [(1,5), (5,6), (6,2), (2,1)],
+  "D": [(4,7), (7,6), (6,5), (5,4)],
+  "L": [(1,5), (5,6), (6,2), (2,1)],
   "R": [(0,3), (3,7), (7,4), (4,0)],
   "F": [(0,4), (4,5), (5,1), (1,0)],
-  # "B": [(3,2), (2,6), (6,7), (7,3)],
+  "B": [(3,2), (2,6), (6,7), (7,3)],
   "U'": [(0,3), (1,0), (2,1), (3,2)],
-  # "D'": [(4,5), (5,6), (6,7), (7,4)],
-  # "L'": [(1,2), (2,6), (6,5), (5,1)],
+  "D'": [(4,5), (5,6), (6,7), (7,4)],
+  "L'": [(1,2), (2,6), (6,5), (5,1)],
   "R'": [(0,4), (4,7), (7,3), (3,0)],
   "F'": [(0,1), (1,5), (5,4), (4,0)],
-  # "B'": [(2,3), (3,7), (7,6), (6,2)],
+  "B'": [(2,3), (3,7), (7,6), (6,2)],
   "U2": [(0,2), (1,3), (2,0), (3,1)],
-  # "D2": [(4,6), (5,7), (6,4), (7,5)],
-  # "L2": [(1,6), (2,5), (5,2), (6,1)],
+  "D2": [(4,6), (5,7), (6,4), (7,5)],
+  "L2": [(1,6), (2,5), (5,2), (6,1)],
   "R2": [(0,7), (3,4), (4,3), (7,0)],
   "F2": [(0,5), (5,0), (1,4), (4,1)],
-  # "B2": [(2,7), (7,2), (3,6), (6,3)],
+  "B2": [(2,7), (7,2), (3,6), (6,3)],
 }
 
 ORIENT_MAP = {
@@ -82,8 +82,7 @@ ROT_ORIENT_MAP = {
     "Z'": [1, 0, 2],
 }
 
-WHITE_ORIENT= [(1, 2, 1), (2, 1, 1), (2, 0, 2), (3, 1, 0), (1, 1, 2), (4, 0, 0), (1, 0, 3), (1, 3, 0), (3, 0, 1), (2, 2, 0)]
-YELLOW_ORIENT = [(1, 2, 1), (2, 1, 1), (3, 0, 1), (2, 0, 2), (0, 3, 1), (0, 0, 4), (0, 1, 3), (3, 1, 0), (0, 4, 0), (4, 0, 0), (1, 1, 2), (1, 0, 3), (1, 3, 0), (0, 2, 2), (2, 2, 0)]
+CHIRALITY = {0:0, 2:0, 5:0, 7:0, 1:1, 3:1, 4:1, 6:1}
 
 def make_rotate(cube_state, rot):
   rot = rot.upper()
@@ -159,6 +158,7 @@ def tree_search(target_state):
           return path + move
         visited.add(h)
         queue.append((next_state, path + move, level + 1))
+    print(level, 3674160 - len(visited), len(queue))
 
 def generate_shuffle():
   out = None
@@ -167,7 +167,7 @@ def generate_shuffle():
     random.shuffle(target)
     for i in range(len(target)):
       target[i][1] = random.randint(0,2)
-    if not valid_perm(target) or not valid_orient(target):
+    if not valid_orient(target):
       continue
     out = tree_search(target)
 
@@ -177,55 +177,13 @@ def generate_scrambles(num_scrambles=1):
   out = []
   for _ in range(num_scrambles):
     out.append(generate_shuffle())
+  return out
 
-def gen_valid_things():
-  w = set()
-  y = set()
-  for _ in range(100000):
-    state = copy.deepcopy(starting_state)
-    for _ in range(100):
-      state = make_move(state, random.choice(list(MOVE_MAP)))
-
-    state = normalize_cube(state)
-    wt = [0] * 3
-    yt = [0] * 3
-
-    for piece in state:
-      if piece[0] < 4:
-        wt[piece[1]]+=1
-      else:
-        yt[piece[1]]+=1
-    w.add((wt[0], wt[1], wt[2]))
-    y.add((yt[0], yt[1], yt[2]))
-
-  print(w, y)
-
-def test_valid():
-  state = copy.deepcopy(starting_state)
-
-  for _ in range(10):
-      state = make_move(state, random.choice(list(MOVE_MAP)))
-      print(state)
-      if not valid_perm(state) or not valid_orient(state):
-        print(valid_perm(state), valid_orient(state))
-
-def valid_perm(cube_state):
-  return True
+def twist_value(slot, ori):
+    return ori if CHIRALITY[slot] == 0 else (3 - ori) % 3
 
 def valid_orient(cube_state):
-  cube_state = normalize_cube(cube_state)
-  wt = [0] * 3
-  yt = [0] * 3
+    total = sum(twist_value(slot, corner[1]) for slot, corner in enumerate(cube_state))
+    return total % 3 == 0
 
-  for piece in cube_state:
-    if piece[0] < 4:
-      wt[piece[1]]+=1
-    else:
-      yt[piece[1]]+=1
-
-  white = (wt[0], wt[1], wt[2])
-  yellow = (yt[0], yt[1], yt[2])
-
-  return white in WHITE_ORIENT and yellow in YELLOW_ORIENT
-
-print(generate_scrambles())
+print(generate_scrambles(1))
